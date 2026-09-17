@@ -1,0 +1,11 @@
+  PID TTY           TIME CMD
+62390 ttys000    0:00.42 -zsh -g --no_rcs
+63059 ttys000   23:16.12 claude --chrome
+63082 ttys000    0:00.89 npm exec @playwright/mcp@latest --isolated    
+63085 ttys000    0:00.88 npm exec @playwright/mcp@latest  
+63132 ttys000    0:35.37 node /Users/amrindersinghscaler/.npm/_npx/9833c18b2d85bc59/node_modules/.bin/playwright-mcp --isolated
+63148 ttys000    0:00.35 node /Users/amrindersinghscaler/.npm/_npx/9833c18b2d85bc59/node_modules/.bin/playwright-mcp
+10379 ttys002    0:00.36 /bin/zsh -il
+71151 ttys004    0:00.38 /bin/zsh -i
+47301 ttys005    0:00.32 /bin/zsh -i
+47623 ttys006    0:00.31 /bin/zsh -il
