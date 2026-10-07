@@ -1,0 +1,9 @@
+# Fix: use a tag that exists.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-imagepull
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine

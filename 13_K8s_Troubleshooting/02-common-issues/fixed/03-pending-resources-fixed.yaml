@@ -1,0 +1,13 @@
+# Fix: request an amount a node can actually satisfy. 100 CPU was never
+# going to schedule on a node with 15 allocatable.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-pending
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      resources:
+        requests:
+          cpu: 100m

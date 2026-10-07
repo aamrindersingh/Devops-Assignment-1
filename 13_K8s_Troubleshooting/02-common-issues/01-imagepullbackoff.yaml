@@ -1,0 +1,9 @@
+# Broken on purpose: the image tag does not exist in the registry.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-imagepull
+spec:
+  containers:
+    - name: app
+      image: nginx:this-tag-does-not-exist

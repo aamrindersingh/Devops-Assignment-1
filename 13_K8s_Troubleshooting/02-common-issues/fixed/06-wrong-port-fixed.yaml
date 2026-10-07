@@ -1,0 +1,11 @@
+# Fix: targetPort now points at the port nginx actually listens on.
+apiVersion: v1
+kind: Service
+metadata:
+  name: port-svc
+spec:
+  selector:
+    app: port-app
+  ports:
+    - port: 80
+      targetPort: 80

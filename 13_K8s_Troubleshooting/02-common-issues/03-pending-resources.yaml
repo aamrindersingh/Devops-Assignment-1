@@ -1,0 +1,13 @@
+# Broken on purpose: asks for more CPU than any node in the cluster has,
+# so the scheduler can never place it.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-pending
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      resources:
+        requests:
+          cpu: "100"

@@ -1,0 +1,11 @@
+# Broken on purpose: the container exits 1 a second after starting, so
+# kubelet restarts it, it fails again, and the backoff grows.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-crashloop
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'starting up'; sleep 1; echo 'fatal: config missing' >&2; exit 1"]

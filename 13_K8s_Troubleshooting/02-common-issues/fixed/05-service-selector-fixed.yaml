@@ -1,0 +1,11 @@
+# Fix: the Service selector now matches the label the pods actually carry.
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-svc
+spec:
+  selector:
+    app: webfrontend
+  ports:
+    - port: 80
+      targetPort: 80

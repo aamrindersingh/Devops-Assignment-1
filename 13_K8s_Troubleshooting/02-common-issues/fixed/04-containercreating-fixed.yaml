@@ -1,0 +1,24 @@
+# Fix: create the ConfigMap the pod mounts.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-that-does-not-exist
+data:
+  app.conf: |
+    mode=demo
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-containercreating
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      volumeMounts:
+        - name: cfg
+          mountPath: /etc/cfg
+  volumes:
+    - name: cfg
+      configMap:
+        name: configmap-that-does-not-exist

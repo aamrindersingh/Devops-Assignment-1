@@ -1,0 +1,32 @@
+# Broken on purpose: nginx listens on 80 but the Service forwards to 8080.
+# Endpoints exist, so this looks healthy, and connections still fail.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: port-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: port-app
+  template:
+    metadata:
+      labels:
+        app: port-app
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: port-svc
+spec:
+  selector:
+    app: port-app
+  ports:
+    - port: 80
+      targetPort: 8080

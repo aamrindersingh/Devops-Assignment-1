@@ -1,0 +1,17 @@
+# Broken on purpose: mounts a ConfigMap that was never created, so the
+# kubelet cannot build the pod sandbox and it sticks in ContainerCreating.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: broken-containercreating
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25-alpine
+      volumeMounts:
+        - name: cfg
+          mountPath: /etc/cfg
+  volumes:
+    - name: cfg
+      configMap:
+        name: configmap-that-does-not-exist
