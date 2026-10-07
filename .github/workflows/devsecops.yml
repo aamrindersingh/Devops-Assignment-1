@@ -243,10 +243,13 @@ jobs:
     needs: [publish]
     steps:
       - uses: actions/checkout@v4
-      - name: Dry run the manifests against the API schema
+      # kubectl --dry-run=client still reaches out to a cluster for the
+      # OpenAPI schema, which a hosted runner does not have. kubeconform
+      # carries the schemas with it and validates completely offline.
+      - name: Validate the manifests offline with kubeconform
         run: |
-          curl -sLO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          # No cluster is reachable from a hosted runner, so this validates
-          # the manifests offline rather than pretending to deploy.
-          ./kubectl apply --dry-run=client -f 16_Complete_CICD_DevSecOps/k8s/deployment.yaml
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz kubeconform
+          ./kubeconform -strict -summary \
+            -kubernetes-version 1.31.0 \
+            16_Complete_CICD_DevSecOps/k8s/deployment.yaml
