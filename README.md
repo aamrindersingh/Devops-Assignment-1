@@ -35,7 +35,10 @@ The folder numbers are one behind the session numbers in the assignment, because
 are combined in `01_Linux_Fundamental`. Each README is titled with its session number so the two line
 up.
 
-Session 21 (`20_Final_DevOps_Project`) is not written yet.
+Session 21 (`20_Final_DevOps_Project`) is a link shortener called **clip**, wired through the whole
+chain: GitHub Actions with four security scanners and a gate, an image in GHCR, a Helm chart
+reconciled onto the cluster by Argo CD, Prometheus scraping metrics the application emits itself,
+and a nightly backup into an S3 bucket that Terraform provisions.
 
 ## Environment
 
