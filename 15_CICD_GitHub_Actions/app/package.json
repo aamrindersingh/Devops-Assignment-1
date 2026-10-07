@@ -1,0 +1,15 @@
+{
+  "name": "cicd-demo",
+  "version": "1.0.0",
+  "description": "Small Express app used to demonstrate a CI/CD pipeline",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js",
+    "lint": "node --check src/server.js && node --check src/calc.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "license": "MIT"
+}
