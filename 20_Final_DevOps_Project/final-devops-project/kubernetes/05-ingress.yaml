@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: clip
+  namespace: clip
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: clip.local
+      http:
+        paths:
+          # One backend, but three meaningful paths: the UI at /, the API
+          # under /api, and every short code at /<code>. They all land on
+          # the same Service, and the app routes internally.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: clip
+                port: { name: http }
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: clip
+                port: { name: http }

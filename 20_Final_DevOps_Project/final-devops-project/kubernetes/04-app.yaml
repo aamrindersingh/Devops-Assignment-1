@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clip
+  namespace: clip
+  labels:
+    app: clip
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: clip
+  template:
+    metadata:
+      labels:
+        app: clip
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: clip
+          image: ghcr.io/aamrindersingh/devops-assignment-1/clip:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          # envFrom pulls in every key at once, so adding a config value
+          # does not mean editing this file as well.
+          envFrom:
+            - configMapRef: { name: clip-config }
+            - secretRef:    { name: clip-secrets }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          # Three probes, each answering a different question.
+          #
+          # startup:   has it finished booting? While this is failing the
+          #            other two are paused, so a slow first start does not
+          #            get killed by liveness.
+          # readiness: can it serve right now? Hits the database, so a
+          #            database outage removes the pod from the Service.
+          # liveness:  is the process wedged? Deliberately does NOT touch
+          #            the database, otherwise a database outage would
+          #            restart every healthy pod and make things worse.
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+
+          # requests are what the HPA measures its percentage against, and
+          # what the scheduler uses to place the pod. Without them the HPA
+          # reports <unknown> forever.
+          resources:
+            requests: { cpu: 100m, memory: 96Mi }
+            limits:   { cpu: 500m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clip
+  namespace: clip
+  labels:
+    app: clip
+spec:
+  type: ClusterIP
+  selector:
+    app: clip
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,25 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: clip
+  namespace: clip
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: clip
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # 100m request x 60% means a pod is added at about 60m sustained.
+          averageUtilization: 60
+  behavior:
+    scaleDown:
+      # Default is 300s. Shortened so the scale down is observable during
+      # a demo without waiting five minutes.
+      stabilizationWindowSeconds: 60

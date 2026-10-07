@@ -1,0 +1,65 @@
+# Nightly pg_dump into the S3 bucket that Terraform provisions. This is
+# what makes the Terraform part of this project load bearing rather than
+# decorative: without the bucket and its IAM policy, this job fails.
+#
+# On EKS the credentials would come from IRSA and there would be no key
+# anywhere. kind has no IRSA, so this uses an access key for a user whose
+# policy allows exactly one action on exactly one prefix. The Secret is
+# created from the command line and is not in git. See terraform/README
+# notes in the main README.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: clip-backup
+  namespace: clip
+spec:
+  schedule: "0 2 * * *"          # 02:00 daily
+  concurrencyPolicy: Forbid       # never let two dumps overlap
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+          containers:
+            - name: backup
+              # Carries both pg_dump and the AWS CLI, so the job is one
+              # container instead of an init container plus a sidecar.
+              image: ghcr.io/aamrindersingh/devops-assignment-1/clip-backup:latest
+              imagePullPolicy: IfNotPresent
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  STAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+                  FILE="/tmp/clip-${STAMP}.sql.gz"
+                  echo "dumping ${PGDATABASE} from ${PGHOST}"
+                  pg_dump -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" | gzip > "$FILE"
+                  echo "uploading $(wc -c < "$FILE") bytes to s3://${BACKUP_BUCKET}/backups/"
+                  aws s3 cp "$FILE" "s3://${BACKUP_BUCKET}/backups/clip-${STAMP}.sql.gz"
+                  echo "backup complete"
+              envFrom:
+                - configMapRef: { name: clip-config }
+                - secretRef:    { name: clip-secrets }
+                - secretRef:    { name: clip-backup-aws }
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef: { name: clip-secrets, key: PGPASSWORD }
+              volumeMounts:
+                - name: scratch
+                  mountPath: /tmp
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits:   { cpu: 300m, memory: 256Mi }
+          volumes:
+            # The dump needs somewhere to land. emptyDir rather than a PVC
+            # because the file only has to survive the length of the job.
+            - name: scratch
+              emptyDir: {}

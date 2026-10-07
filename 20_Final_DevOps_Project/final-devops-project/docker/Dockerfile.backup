@@ -1,0 +1,6 @@
+# pg_dump plus the AWS CLI in one small image for the backup CronJob.
+FROM alpine:3.20
+RUN apk add --no-cache postgresql16-client aws-cli gzip \
+ && adduser -D -u 1000 backup
+USER backup
+ENTRYPOINT ["sh", "-c"]

@@ -1,0 +1,14 @@
+# Non secret configuration. Everything here is safe to read, which is the
+# line between a ConfigMap and a Secret.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clip-config
+  namespace: clip
+data:
+  BASE_URL: "http://clip.local"
+  CODE_LENGTH: "7"
+  PGHOST: "clip-postgres"
+  PGPORT: "5432"
+  PGDATABASE: "clip"
+  PG_POOL_MAX: "10"

@@ -1,0 +1,55 @@
+# Alerts. Each one has a for: duration so a single bad scrape does not page
+# anybody, and a runbook line in the annotation so whoever gets woken up
+# knows what to do.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: clip
+  namespace: clip
+  labels:
+    app: clip
+    release: monitoring
+spec:
+  groups:
+    - name: clip.rules
+      rules:
+        - alert: ClipDown
+          expr: up{job="clip"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "clip has no healthy instances being scraped"
+            runbook: "kubectl -n clip get pods, then describe the pod and check /ready"
+
+        - alert: ClipDatabaseUnreachable
+          # The app sets this gauge from its own readiness check, so this
+          # alert fires on what the application believes rather than on an
+          # inference from outside.
+          expr: min(clip_db_up) == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "clip cannot reach Postgres, pods will be NotReady"
+            runbook: "kubectl -n clip get sts clip-postgres and check the PVC is bound"
+
+        - alert: ClipHighMissRate
+          # More than 1 miss per second sustained usually means someone is
+          # enumerating short codes rather than real traffic.
+          expr: rate(clip_redirect_misses_total[5m]) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "high rate of requests for codes that do not exist"
+            runbook: "possible code enumeration, check ingress-nginx access logs for the source"
+
+        - alert: ClipRejectingManyUrls
+          expr: rate(clip_rejected_urls_total[5m]) > 0.5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "many submissions are being refused as unsafe URLs"
+            runbook: "either a broken client or someone probing for an open redirect"

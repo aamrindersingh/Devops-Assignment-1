@@ -1,0 +1,84 @@
+# A StatefulSet rather than a Deployment, because the database has an
+# identity and its own disk. volumeClaimTemplates gives the pod a PVC that
+# survives rescheduling, which a Deployment cannot do per replica.
+apiVersion: v1
+kind: Service
+metadata:
+  name: clip-postgres
+  namespace: clip
+  labels:
+    app: clip-postgres
+spec:
+  # Headless. The StatefulSet needs stable per pod DNS, and nothing is load
+  # balanced across database replicas here anyway.
+  clusterIP: None
+  selector:
+    app: clip-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clip-postgres
+  namespace: clip
+spec:
+  serviceName: clip-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clip-postgres
+  template:
+    metadata:
+      labels:
+        app: clip-postgres
+    spec:
+      securityContext:
+        fsGroup: 999        # so the mounted volume is writable by postgres
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: clip-secrets, key: PGUSER }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: clip-secrets, key: PGPASSWORD }
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef: { name: clip-config, key: PGDATABASE }
+            # The image refuses to initialise into a non empty directory,
+            # and a mounted volume already contains lost+found.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 1Gi

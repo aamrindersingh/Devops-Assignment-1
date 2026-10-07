@@ -1,0 +1,25 @@
+# Tells Prometheus to scrape the app. The operator watches for these and
+# rewrites the Prometheus config, so no Prometheus config is edited by hand.
+#
+# This is picked up because Session 20 installed the stack with
+# serviceMonitorSelectorNilUsesHelmValues: false. Without that, Prometheus
+# only looks at ServiceMonitors carrying its own release label and this
+# one in the clip namespace would be silently ignored.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: clip
+  namespace: clip
+  labels:
+    app: clip
+spec:
+  selector:
+    matchLabels:
+      app: clip          # matches the clip Service, not the pods
+  namespaceSelector:
+    matchNames: [clip]
+  endpoints:
+    - port: http         # the Service port is named, so this survives a port change
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
