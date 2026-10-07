@@ -1,0 +1,16 @@
+title = "clip gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders and generated examples that are not real credentials"
+regexes = [
+  '''REPLACE_ME''',
+  # the literal openssl commands shown in docs, not a value
+  '''openssl rand''',
+]
+paths = [
+  # the Secret template, which only ever contains REPLACE_ME
+  '''20_Final_DevOps_Project/final-devops-project/kubernetes/02-secret\.yaml''',
+]

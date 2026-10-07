@@ -103,6 +103,16 @@ app.get("/:code", async (req, res) => {
     return res.status(404).type("html").send("<h1>404</h1><p>No such link.</p>");
   }
   M.redirects.inc();
+  // Accepted, with justification. Redirecting to a stored URL is the
+  // entire function of a shortener, so this line cannot be removed. The
+  // control is at the write path: POST /api/links refuses anything that
+  // is not http or https via isSafeUrl(), covered by four unit tests
+  // including javascript:, data:, file: and the scheme relative
+  // //evil.com case. Nothing reaches this line that did not pass that
+  // check. Reviewed 2026-10-08, revisit if the write path ever changes.
+  //
+  // The suppression has to sit on the line directly above the match.
+  // nosemgrep: clip-redirect-to-non-literal
   res.redirect(302, url);
 });
 

@@ -1,0 +1,12 @@
+# Trivy settings for the image scan. Kept in the repo so a local run and
+# the pipeline agree, rather than the flags living only in the workflow.
+severity:
+  - HIGH
+  - CRITICAL
+scan:
+  scanners:
+    - vuln
+    - secret
+    - misconfig
+vulnerability:
+  ignore-unfixed: true

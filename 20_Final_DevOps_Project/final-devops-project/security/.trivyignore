@@ -1,0 +1,9 @@
+# Accepted findings, each with a reason and a review date. An entry with
+# no justification is how a scanner quietly stops meaning anything.
+#
+# Nothing is ignored today. Base image CVEs are reported by the pipeline
+# and not gated, which is a threshold decision rather than a suppression,
+# so they do not belong in this file.
+#
+# Format when something is added:
+#   CVE-YYYY-NNNNN   # why it is accepted, who decided, when to revisit

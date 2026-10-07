@@ -1,0 +1,26 @@
+# Custom Semgrep rules for this codebase.
+#
+# Written because the community rulesets (p/javascript, p/security-audit)
+# return zero findings here, and zero findings is not the same as no risk.
+# The dangerous flow in this application is:
+#
+#     req.params.code  ->  Postgres  ->  res.redirect(url)
+#
+# Taint analysis cannot follow data through a database round trip, so no
+# generic rule sees it. A rule that knows this codebase can.
+rules:
+  - id: clip-redirect-to-non-literal
+    message: >-
+      res.redirect() is called with a value that is not a string literal.
+      In this application the destination comes out of the database, where
+      it was originally user supplied, so this is an open redirect by
+      construction. It is only safe if the value was validated before it
+      was stored. Confirm the write path calls isSafeUrl(), and if this is
+      intentional suppress it inline with a nosemgrep comment naming this
+      rule and the reason.
+    severity: ERROR
+    languages: [javascript, typescript]
+    patterns:
+      - pattern: $RES.redirect(...)
+      - pattern-not: $RES.redirect("...")
+      - pattern-not: $RES.redirect($CODE, "...")

@@ -1,0 +1,57 @@
+# The whole deployment pipeline for this project, as one object.
+#
+# Nothing in CI touches the cluster. The pipeline builds, scans and
+# publishes an image; Argo CD, running inside the cluster, pulls this
+# chart from git and makes the cluster match it. That direction is what
+# lets a cluster on a laptop be deployed to by a hosted runner that
+# cannot reach it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: clip
+  namespace: argocd
+  finalizers:
+    # Without this, deleting the Application orphans everything it made.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/aamrindersingh/Devops-Assignment-1.git
+    targetRevision: main
+    path: 20_Final_DevOps_Project/final-devops-project/helm/clip
+    helm:
+      releaseName: clip
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: monitoring.serviceMonitor
+          value: "true"
+        - name: monitoring.prometheusRule
+          value: "true"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: clip
+
+  syncPolicy:
+    automated:
+      selfHeal: true   # revert anything changed by hand in the cluster
+      prune: true      # delete what is removed from git
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  # The HPA owns the replica count, so Argo must not treat a scaled
+  # deployment as drift and scale it back every three minutes. Without
+  # this the autoscaler and the GitOps controller fight each other.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
