@@ -22,6 +22,9 @@ spec:
           containers:
             - name: backup
               image: {{ .Values.backup.image }}
+              # A :latest tag defaults to Always, which ignores an image
+              # already loaded onto the kind nodes with `kind load`.
+              imagePullPolicy: {{ .Values.backup.pullPolicy }}
               command:
                 - sh
                 - -c

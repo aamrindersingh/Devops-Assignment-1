@@ -59,5 +59,6 @@ backup:
   enabled: false
   schedule: "0 2 * * *"
   image: ghcr.io/aamrindersingh/devops-assignment-1/clip-backup:latest
+  pullPolicy: IfNotPresent
   bucket: ""
   awsSecret: clip-backup-aws

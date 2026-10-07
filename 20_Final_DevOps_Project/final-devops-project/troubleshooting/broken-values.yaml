@@ -1,0 +1,24 @@
+# Five faults, one per layer, applied as a Helm values overlay so they go
+# in the same way a real bad config change would: somebody edits values
+# and ships it.
+#
+# Nothing here says which line is wrong. Each one fails at a different
+# layer and shows a different symptom.
+#
+#   1. image.tag           -> a tag that does not exist
+#   2. resources.requests  -> removed, so the HPA has nothing to measure
+#   3. probe path          -> handled separately, see broken-probe.yaml
+#   4. postgres storage    -> a StorageClass that does not exist
+#   5. service port name   -> handled separately, see broken-service.yaml
+
+image:
+  tag: "v9.9.9-does-not-exist"
+
+resources:
+  requests: {}
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+postgres:
+  storageClassName: fast-ssd-that-does-not-exist
