@@ -1,0 +1,38 @@
+# Trimmed down for a laptop kind cluster. The full chart assumes a real
+# cluster with persistent storage and alertmanager routing set up.
+grafana:
+  adminPassword: devops-demo
+  service:
+    type: ClusterIP
+  persistence:
+    enabled: false
+
+prometheus:
+  prometheusSpec:
+    retention: 2h
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+      limits:
+        memory: 1Gi
+    # Watch ServiceMonitors in every namespace, not just the release one,
+    # so the demo app in default/ gets scraped.
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 20m
+        memory: 100Mi
+
+# kind nodes do not expose these the way a kubeadm cluster does.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false

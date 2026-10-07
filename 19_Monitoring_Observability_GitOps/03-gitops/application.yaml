@@ -1,0 +1,27 @@
+# The Argo CD Application: points at a path in a git repo and a target
+# cluster/namespace. This object is the entire "deployment pipeline".
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-demo
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/aamrindersingh/Devops-Assignment-1.git
+    targetRevision: main
+    path: 19_Monitoring_Observability_GitOps/03-gitops/manifests
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitops-demo
+
+  syncPolicy:
+    automated:
+      # Revert anything changed by hand in the cluster.
+      selfHeal: true
+      # Delete resources that are removed from git.
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

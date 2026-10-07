@@ -1,3 +1,22 @@
 node_modules/
 dist/
 .DS_Store
+
+# Terraform: state can contain secrets and resource detail, and the
+# provider plugin directory is large. Never commit these.
+**/.terraform/
+# .terraform.lock.hcl is deliberately NOT ignored. Terraform says to commit
+# it so everyone resolves the same provider versions.
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+
+# AWS
+.aws/
+credentials

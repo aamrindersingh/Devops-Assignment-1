@@ -1,0 +1,37 @@
+# The desired state, stored in git. Argo CD reads this from the repo and
+# makes the cluster match it. Nobody runs kubectl apply for this.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitops-demo
+  labels:
+    app: gitops-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gitops-demo
+  template:
+    metadata:
+      labels:
+        app: gitops-demo
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { cpu: 100m, memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitops-demo
+spec:
+  selector:
+    app: gitops-demo
+  ports:
+    - port: 80
+      targetPort: 80

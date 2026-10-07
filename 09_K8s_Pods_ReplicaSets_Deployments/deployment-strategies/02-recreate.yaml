@@ -1,0 +1,29 @@
+# Recreate: tear every old pod down first, then start the new ones. There
+# is a window with zero pods running, so this means downtime. Used when two
+# versions genuinely cannot run at once, for example an exclusive file lock
+# or a breaking database migration.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recreate-app
+spec:
+  replicas: 4
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: recreate-app
+  template:
+    metadata:
+      labels:
+        app: recreate-app
+        version: v1
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            periodSeconds: 2

@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored,
+# because in a real project it is where account specific values live.
+aws_region        = "ap-south-1"
+project_name      = "devops-hw-s3"
+environment       = "dev"
+enable_versioning = true

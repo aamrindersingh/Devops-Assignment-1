@@ -1,0 +1,41 @@
+# Rolling update: replace pods a few at a time. maxSurge 1 / maxUnavailable 0
+# means a new pod must be Ready before an old one is removed, so capacity
+# never dips below the requested replica count.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rolling-app
+spec:
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: rolling-app
+  template:
+    metadata:
+      labels:
+        app: rolling-app
+        version: v1
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rolling-app
+spec:
+  selector:
+    app: rolling-app
+  ports:
+    - port: 80

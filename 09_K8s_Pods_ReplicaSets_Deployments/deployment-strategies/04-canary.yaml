@@ -1,0 +1,84 @@
+# Canary: one Service selects on a label that BOTH deployments carry, so
+# traffic is split by replica count. 4 stable + 1 canary is roughly 20% to
+# the new version. Increase the canary replicas to shift more traffic.
+#
+# This is the plain Kubernetes way. A service mesh or an ingress with
+# weighting gives exact percentages instead of a ratio of pods.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canary-stable
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: canary-app
+      track: stable
+  template:
+    metadata:
+      labels:
+        app: canary-app
+        track: stable
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          volumeMounts:
+            - name: page
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: page
+          configMap:
+            name: canary-stable-page
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: canary-stable-page
+data:
+  index.html: "STABLE v1\n"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canary-new
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: canary-app
+      track: canary
+  template:
+    metadata:
+      labels:
+        app: canary-app
+        track: canary
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          volumeMounts:
+            - name: page
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: page
+          configMap:
+            name: canary-new-page
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: canary-new-page
+data:
+  index.html: "CANARY v2\n"
+---
+# Selects only app=canary-app, so it matches both tracks.
+apiVersion: v1
+kind: Service
+metadata:
+  name: canary-app
+spec:
+  selector:
+    app: canary-app
+  ports:
+    - port: 80

@@ -1,0 +1,89 @@
+# Blue/green: two complete deployments exist side by side. The Service
+# selector decides which one receives traffic, so a switch is instant and
+# rolling back is just editing the selector back.
+#
+# Cost: both versions run at full size, so double the resources during a
+# release.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bg-app
+      slot: blue
+  template:
+    metadata:
+      labels:
+        app: bg-app
+        slot: blue
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: page
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: page
+          configMap:
+            name: bg-blue-page
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bg-blue-page
+data:
+  index.html: "BLUE version 1.0\n"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: bg-app
+      slot: green
+  template:
+    metadata:
+      labels:
+        app: bg-app
+        slot: green
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: page
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: page
+          configMap:
+            name: bg-green-page
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bg-green-page
+data:
+  index.html: "GREEN version 2.0\n"
+---
+# The switch lives here. slot: blue or slot: green, nothing else changes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: bg-app
+spec:
+  selector:
+    app: bg-app
+    slot: blue
+  ports:
+    - port: 80
