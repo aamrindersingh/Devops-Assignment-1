@@ -1,0 +1,9 @@
+apiVersion: v2
+name: clip
+description: A link shortener for long college URLs, with Postgres, probes, autoscaling and metrics
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords: [shortener, devops, session-21]
+maintainers:
+  - name: Amrinder Singh

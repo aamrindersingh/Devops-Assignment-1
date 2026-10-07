@@ -1,0 +1,63 @@
+# Defaults are the dev profile. values-prod.yaml overrides only what differs.
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/aamrindersingh/devops-assignment-1/clip
+  tag: latest
+  # IfNotPresent so an image loaded onto kind with `kind load` is used.
+  # A :latest tag otherwise defaults to Always and ignores it.
+  pullPolicy: IfNotPresent
+
+config:
+  baseUrl: "http://clip.local"
+  codeLength: "7"
+  pgPoolMax: "10"
+  pgDatabase: "clip"
+
+# Secrets are never put in a values file. The chart expects a Secret with
+# this name to already exist, created out of band. existingSecret is the
+# only honest way to do this in a chart that lives in git.
+secret:
+  existingSecret: clip-secrets
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  host: clip.local
+
+resources:
+  requests: { cpu: 100m, memory: 96Mi }
+  limits:   { cpu: 500m, memory: 256Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 60
+
+postgres:
+  enabled: true
+  image: postgres:16-alpine
+  storage: 1Gi
+  storageClassName: standard
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+
+monitoring:
+  # Off by default, because a ServiceMonitor needs the Prometheus Operator
+  # CRDs and the chart should install on a cluster without them.
+  serviceMonitor: false
+  prometheusRule: false
+
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  image: ghcr.io/aamrindersingh/devops-assignment-1/clip-backup:latest
+  bucket: ""
+  awsSecret: clip-backup-aws

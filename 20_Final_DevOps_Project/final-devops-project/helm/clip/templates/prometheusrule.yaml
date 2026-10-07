@@ -1,0 +1,25 @@
+{{- if .Values.monitoring.prometheusRule }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "clip.fullname" . }}
+  labels:
+    {{- include "clip.labels" . | nindent 4 }}
+    release: monitoring
+spec:
+  groups:
+    - name: clip.rules
+      rules:
+        - alert: ClipDown
+          expr: up{job="{{ include "clip.fullname" . }}"} == 0
+          for: 1m
+          labels: { severity: critical }
+          annotations:
+            summary: "clip has no healthy instances being scraped"
+        - alert: ClipDatabaseUnreachable
+          expr: min(clip_db_up) == 0
+          for: 1m
+          labels: { severity: critical }
+          annotations:
+            summary: "clip cannot reach Postgres, pods will be NotReady"
+{{- end }}

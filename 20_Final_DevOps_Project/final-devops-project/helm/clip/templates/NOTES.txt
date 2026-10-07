@@ -1,0 +1,20 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed as "{{ .Release.Name }}" in {{ .Release.Namespace }}.
+
+  Replicas:  {{ if .Values.autoscaling.enabled }}HPA {{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }} at {{ .Values.autoscaling.targetCPUUtilizationPercentage }}% CPU{{ else }}{{ .Values.replicaCount }} (fixed){{ end }}
+  Postgres:  {{ if .Values.postgres.enabled }}{{ .Values.postgres.storage }} on {{ .Values.postgres.storageClassName }}{{ else }}disabled, expecting an external database{{ end }}
+  Metrics:   {{ if .Values.monitoring.serviceMonitor }}ServiceMonitor created{{ else }}off, set monitoring.serviceMonitor=true{{ end }}
+  Backups:   {{ if .Values.backup.enabled }}{{ .Values.backup.schedule }} to s3://{{ .Values.backup.bucket }}{{ else }}off{{ end }}
+
+{{- if .Values.ingress.enabled }}
+
+Try it:
+  curl -H "Host: {{ .Values.ingress.host }}" http://localhost:8081/
+{{- end }}
+
+This chart expects the Secret "{{ .Values.secret.existingSecret }}" to exist already.
+It is not in the chart on purpose. Create it with:
+
+  kubectl -n {{ .Release.Namespace }} create secret generic {{ .Values.secret.existingSecret }} \
+    --from-literal=PGUSER=clip \
+    --from-literal=PGPASSWORD="$(openssl rand -base64 24)" \
+    --from-literal=ADMIN_TOKEN="$(openssl rand -hex 16)"

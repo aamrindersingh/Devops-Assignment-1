@@ -1,0 +1,19 @@
+{{- if .Values.monitoring.serviceMonitor }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "clip.fullname" . }}
+  labels:
+    {{- include "clip.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "clip.selectorLabels" . | nindent 6 }}
+      component: web
+  namespaceSelector:
+    matchNames: [{{ .Release.Namespace }}]
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+{{- end }}

@@ -1,0 +1,46 @@
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "clip.fullname" . }}-backup
+  labels:
+    {{- include "clip.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+          containers:
+            - name: backup
+              image: {{ .Values.backup.image }}
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  STAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+                  FILE="/tmp/clip-${STAMP}.sql.gz"
+                  pg_dump -h "$PGHOST" -U "$PGUSER" -d "$PGDATABASE" | gzip > "$FILE"
+                  aws s3 cp "$FILE" "s3://${BACKUP_BUCKET}/backups/clip-${STAMP}.sql.gz"
+              env:
+                - name: BACKUP_BUCKET
+                  value: {{ .Values.backup.bucket | quote }}
+              envFrom:
+                - configMapRef: { name: {{ include "clip.fullname" . }}-config }
+                - secretRef:    { name: {{ .Values.secret.existingSecret }} }
+                - secretRef:    { name: {{ .Values.backup.awsSecret }} }
+              volumeMounts:
+                - { name: scratch, mountPath: /tmp }
+          volumes:
+            - name: scratch
+              emptyDir: {}
+{{- end }}
