@@ -11,6 +11,10 @@ dist/
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+# saved plan files are binary and can carry sensitive values
+tfplan
+*.tfplan
+
 crash.log
 crash.*.log
 override.tf
