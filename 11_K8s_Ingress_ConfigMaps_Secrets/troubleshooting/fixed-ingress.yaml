@@ -1,0 +1,30 @@
+# All three faults corrected:
+#   ingressClassName  nginx-ingress -> nginx                 (matches the IngressClass)
+#   / backend         yatri-frontend -> yatri-frontend-service (matches the real Service)
+#   /api port         8080 -> 80                             (matches the Service port)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: broken-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: broken.local
+      http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: yatri-backend-service
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-frontend-service
+                port:
+                  number: 80

@@ -1,0 +1,33 @@
+# Three faults planted on purpose. Nothing here says which lines are wrong.
+#
+#  1. ingressClassName is "nginx-ingress", but the IngressClass in the
+#     cluster is called "nginx". No controller claims it.
+#  2. the / rule sends traffic to "yatri-frontend", but the Service is
+#     actually called "yatri-frontend-service".
+#  3. the /api rule uses port 8080, but the backend Service listens on 80.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: broken-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx-ingress
+  rules:
+    - host: broken.local
+      http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: yatri-backend-service
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-frontend
+                port:
+                  number: 80

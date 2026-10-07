@@ -297,3 +297,33 @@ kubectl delete configmap cli-config
 
 ![k11-06-browser-api](screenshots/k11-06-browser-api.png)
 
+---
+
+## Task 4: Ingress vs Ingress Controller
+
+[ingress-vs-controller/README.md](ingress-vs-controller/README.md).
+
+Proved rather than described. I had deleted the controller's namespace while cleaning up after
+Session 14, so the cluster had an IngressClass and no controller. Applying the Ingress in that state
+creates the object successfully with an **empty ADDRESS**, and every request gets nothing. Installing
+the controller, without editing the Ingress at all, makes the same object start routing.
+
+It also documents a trap: deleting the `ingress-nginx` namespace leaves its cluster scoped
+ValidatingWebhookConfiguration behind, and that orphan then blocks creating **any** Ingress anywhere
+in the cluster.
+
+![ingress with and without a controller](screenshots/s12-07-ingress-vs-controller.png)
+
+## Task 5: Troubleshooting
+
+[troubleshooting/README.md](troubleshooting/README.md).
+
+Three faults planted in one Ingress, found from the cluster and fixed one at a time: a class name
+that matches no IngressClass, a backend naming a Service that does not exist, and a port the Service
+does not expose.
+
+The thing worth keeping is that each fault had its own status code. **404 means the controller has no
+rule for you, 503 means it has the rule but cannot reach a backend.** One is a routing problem and
+the other is a backend problem, and they send you to different places.
+
+![troubleshooting before and after](screenshots/s12-08-troubleshooting.png)
