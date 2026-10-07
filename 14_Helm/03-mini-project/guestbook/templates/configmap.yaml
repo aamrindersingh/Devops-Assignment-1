@@ -1,0 +1,14 @@
+{{- if .Values.config.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "guestbook.fullname" . }}-config
+  labels:
+    {{- include "guestbook.labels" . | nindent 4 }}
+data:
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  index.html: |
+    <h1>{{ .Values.config.greeting }}</h1>
+    <p>Environment: {{ .Values.config.environment }}</p>
+    <p>Release: {{ .Release.Name }} | Chart: {{ .Chart.Name }}-{{ .Chart.Version }}</p>
+{{- end }}

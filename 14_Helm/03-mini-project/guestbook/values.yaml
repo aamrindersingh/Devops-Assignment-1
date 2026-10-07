@@ -1,0 +1,32 @@
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: 1.25-alpine
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Toggles a whole template on or off. With enabled: false the ConfigMap
+# is never rendered at all.
+config:
+  enabled: true
+  greeting: "Hello from the guestbook chart"
+  environment: dev
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+# Same pattern for the HPA. Off by default, on in values-prod.yaml.
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70

@@ -1,0 +1,14 @@
+# Overlay for a "production" install. Only the values that differ from
+# values.yaml need to be here, everything else is inherited.
+replicaCount: 3
+
+config:
+  enabled: true
+  greeting: "Guestbook running in production"
+  environment: prod
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 60

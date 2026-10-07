@@ -1,0 +1,9 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed as release "{{ .Release.Name }}".
+
+  Replicas:    {{ if .Values.autoscaling.enabled }}managed by HPA ({{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }}){{ else }}{{ .Values.replicaCount }}{{ end }}
+  Environment: {{ .Values.config.environment }}
+
+Check it from inside the cluster:
+
+  kubectl run tmp --rm -it --image=busybox:1.36 --restart=Never -- \
+    wget -qO- http://{{ include "guestbook.fullname" . }}:{{ .Values.service.port }}
