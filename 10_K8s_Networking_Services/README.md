@@ -314,3 +314,31 @@ kubectl delete -f manifests/01-clusterip -f manifests/02-nodeport -f manifests/0
 
 ![k10-06-empty-endpoints](screenshots/k10-06-empty-endpoints.png)
 
+---
+
+## Task 2: Kubernetes object comparison
+
+Written up in [comparisons/README.md](comparisons/README.md):
+
+- Deployment vs ReplicaSet, including the `ownerReferences` chain proving a Deployment really does
+  own the ReplicaSet which owns the pods
+- Deployment vs DaemonSet vs StatefulSet across pod naming, ordering, scaling, storage and networking
+- ReplicaSet vs Service, and why a Service is needed at all
+
+## Task 3: FQDN
+
+[fqdn/README.md](fqdn/README.md). Covers the naming convention, what the `search` and `ndots:5`
+lines in a pod's `/etc/resolv.conf` actually do, and a test from a pod in `default` against a
+Service in `dns-lab` showing which of the four name forms resolve and why.
+
+It also records a wrong answer I nearly wrote down: busybox `nslookup` reported NXDOMAIN for a name
+that resolves fine, because it does not follow the search list properly.
+
+![fqdn test](screenshots/s11-07-fqdn.png)
+
+## Task 4: CoreDNS
+
+[coredns/README.md](coredns/README.md). The real Corefile off my cluster with every plugin explained,
+how a query is resolved end to end, and a troubleshooting order.
+
+![coredns](screenshots/s11-08-coredns.png)

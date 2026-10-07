@@ -314,3 +314,140 @@ daemonset.apps "node-logging-agent" deleted from default namespace
 
 ![k9-06-daemonset](screenshots/k9-06-daemonset.png)
 
+---
+
+## Task 1 (added): the four deployment strategies
+
+The updated task list asks for all four. Manifests are in
+[deployment-strategies/](deployment-strategies).
+
+For the two that are real Kubernetes `strategy` types I sampled `readyReplicas` once a second
+during the rollout, so the difference is measured rather than described.
+
+### Rolling update
+
+[deployment-strategies/01-rolling-update.yaml](deployment-strategies/01-rolling-update.yaml),
+4 replicas, `maxSurge: 1`, `maxUnavailable: 0`.
+
+```text
+$ kubectl set image deployment/rolling-app web=nginx:1.26-alpine
+# ready/total sampled once a second during the rollout
+4/4 4/5 4/5 4/5 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4
+```
+
+Ready never drops below 4. The total briefly goes to 5, which is `maxSurge: 1` adding a pod before
+removing one. **No downtime**, at the cost of running one extra pod for a few seconds.
+
+![rolling update](screenshots/s10-07-rolling-update.png)
+
+### Recreate
+
+[deployment-strategies/02-recreate.yaml](deployment-strategies/02-recreate.yaml), same 4 replicas,
+`strategy.type: Recreate`.
+
+```text
+$ kubectl set image deployment/recreate-app web=nginx:1.26-alpine
+# ready/total sampled once a second during the rollout
+4/4 0/4 0/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4 4/4
+```
+
+**0/4 for about two seconds.** Every old pod is terminated before any new one starts, so there is a
+window where the application is completely down. That is the measured difference between the two
+strategies, on the same deployment and the same image change.
+
+Worth it when two versions genuinely cannot coexist, for example an exclusive lock on a file or a
+schema migration that the old version cannot read.
+
+![recreate](screenshots/s10-08-recreate.png)
+
+### Blue/green
+
+[deployment-strategies/03-blue-green.yaml](deployment-strategies/03-blue-green.yaml). Not a
+Kubernetes `strategy` type. Two complete Deployments run side by side and a Service selector decides
+which one gets traffic.
+
+```text
+$ kubectl get pods -l app=bg-app --no-headers | wc -l
+       6
+
+$ kubectl get svc bg-app -o jsonpath="selector={.spec.selector}"
+selector={"app":"bg-app","slot":"blue"}
+
+$ kubectl exec helm-client -- wget -qO- http://bg-app
+BLUE version 1.0
+
+$ kubectl patch svc bg-app -p "{\"spec\":{\"selector\":{\"app\":\"bg-app\",\"slot\":\"green\"}}}"
+service/bg-app patched
+
+$ kubectl get endpointslices -l kubernetes.io/service-name=bg-app -o jsonpath="{.items[0].endpoints[*].addresses[0]}"
+10.244.1.93 10.244.1.92 10.244.1.94
+
+$ kubectl exec helm-client -- wget -qO- http://bg-app
+GREEN version 2.0
+
+$ kubectl patch svc bg-app -p "{\"spec\":{\"selector\":{\"app\":\"bg-app\",\"slot\":\"blue\"}}}"
+service/bg-app patched
+
+$ kubectl exec helm-client -- wget -qO- http://bg-app
+BLUE version 1.0
+```
+
+Six pods for a three replica app, because both versions are fully deployed. The switch is one
+selector edit, and so is the rollback, which is the appeal: going back is as fast as going forward,
+and the old version is still warm.
+
+**One thing I got wrong first time.** I patched the selector and immediately curled, and still got
+the old version. I assumed the switch had failed. It had not: the endpoints controller had not
+updated the EndpointSlice yet. A few seconds later it served the new version correctly. The switch
+is fast but it is not atomic, so "instant" overstates it.
+
+![blue green](screenshots/s10-09-blue-green.png)
+
+### Canary
+
+[deployment-strategies/04-canary.yaml](deployment-strategies/04-canary.yaml). Two Deployments whose
+pods share one label, so a single Service selects both and traffic splits by replica count.
+
+```text
+$ kubectl get pods -l app=canary-app -L track --no-headers | awk "{print \$6}" | sort | uniq -c
+   1 canary
+   4 stable
+
+$ kubectl get endpointslices -l kubernetes.io/service-name=canary-app -o jsonpath="{.items[0].endpoints[*].addresses[0]}"
+10.244.1.97 10.244.1.101 10.244.1.98 10.244.1.100 10.244.1.99
+
+$ kubectl exec helm-client -- sh -c "for i in \$(seq 1 100); do wget -qO- http://canary-app; done" | sort | uniq -c
+  22 CANARY v2
+  78 STABLE v1
+```
+
+100 real requests, 22% reaching the canary. The replica ratio predicts 20%, so the split follows the
+pod count.
+
+Shifting more traffic is just scaling:
+
+```text
+$ kubectl scale deployment canary-new --replicas=4
+deployment.apps/canary-new scaled
+
+$ kubectl exec helm-client -- sh -c "for i in \$(seq 1 100); do wget -qO- http://canary-app; done" | sort | uniq -c
+  47 CANARY v2
+  53 STABLE v1
+```
+
+4 and 4 gives 47/53, near enough 50/50.
+
+The limitation is visible in those numbers: you only get ratios the replica counts can express. 5%
+to a canary would need 19 stable pods against 1. For real percentages you need an ingress that
+supports weighting, or a service mesh.
+
+![canary](screenshots/s10-10-canary.png)
+
+### Comparison
+
+| Strategy | Downtime | Extra resources | Rollback speed | Traffic control |
+|---|---|---|---|---|
+| Rolling update | none (measured 4/4 throughout) | 1 extra pod | a rollout, so tens of seconds | none |
+| Recreate | yes (measured 0/4 for ~2s) | none | a rollout, plus downtime again | none |
+| Blue/green | none | 2x for the whole release | one selector edit | all or nothing |
+| Canary | none | 1 extra pod | scale the canary to 0 | by replica ratio |
