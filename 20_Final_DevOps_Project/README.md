@@ -750,6 +750,10 @@ Application is invisible to it.
 
 The one piece that ties Kubernetes and AWS together.
 
+> The bucket and the IAM user were destroyed with `terraform destroy` once this was captured, so the
+> account carries nothing. `terraform apply` from [terraform/](final-devops-project/terraform)
+> recreates them, with a different random suffix on the bucket name.
+
 ```text
 $ kubectl -n clip create job clip-backup-manual --from=cronjob/clip-clip-backup
 job.batch/clip-backup-manual created

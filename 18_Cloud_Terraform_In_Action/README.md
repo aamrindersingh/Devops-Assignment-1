@@ -252,11 +252,18 @@ served by that specific instance.
 
 ---
 
-## It is actually on the internet
+## It was actually on the internet
+
+> **Note on the current state.** The stack was destroyed with `terraform destroy` after these
+> screenshots were taken, so `13.207.51.237` no longer answers. Leaving a public EC2 instance running
+> on a coursework account with nobody watching it is not something I wanted to do, and tearing it
+> down cleanly is half of what infrastructure as code is for. `terraform apply` from
+> [terraform/](terraform) rebuilds the whole thing in about ninety seconds, and the instance ID and
+> IP would differ. Everything below is from the run that produced the screenshots.
 
 ![the live website](screenshots/s19-01-website-live.jpg)
 
-That is a browser on my laptop loading `http://13.207.51.237`, a public IP on an EC2 instance in
+That was a browser on my laptop loading `http://13.207.51.237`, a public IP on an EC2 instance in
 Mumbai. Three things had to be right at once for this to work, and missing any one gives a timeout:
 a public IP on the instance, a route to the Internet Gateway, and a security group allowing port 80.
 
