@@ -1,0 +1,8 @@
+# Throwaway manifest used only to prove Argo CD can still clone this repo
+# now that it is 22MB. Replaced by the real application once that is confirmed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitops-smoke-test
+data:
+  note: "if Argo created this, it can read the repo"
