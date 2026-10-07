@@ -17,7 +17,11 @@ spec:
       containers:
         - name: app
           # The pipeline rewrites this tag on each deploy.
-          image: ghcr.io/aamrindersingh/cicd-demo:latest
+          image: ghcr.io/aamrindersingh/devops-assignment-1/cicd-demo:latest
+          # A :latest tag defaults to imagePullPolicy Always, which ignores
+          # an image already loaded onto the kind nodes. IfNotPresent lets
+          # the locally loaded image be used.
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
           env:
