@@ -1,0 +1,20 @@
+# Gitleaks configuration. Extends the default ruleset and adds an allowlist
+# for the one fake credential this repo contains on purpose, so the scan
+# fails on real secrets and not on the teaching example.
+title = "devsecops-demo gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known test values that are not real credentials"
+regexes = [
+  # the dummy password used in the Session 14 troubleshooting lab
+  '''s3cr3t-demo''',
+  # the planted secret used to prove the scanner works, see security/README.md
+  '''AKIAIOSFODNN7EXAMPLE''',
+]
+paths = [
+  '''13_K8s_Troubleshooting/.*''',
+  '''16_Complete_CICD_DevSecOps/security/README\.md''',
+]

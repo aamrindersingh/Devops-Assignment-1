@@ -1,0 +1,252 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '16_Complete_CICD_DevSecOps/**'
+      - '.github/workflows/devsecops.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '16_Complete_CICD_DevSecOps/**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/aamrindersingh/devops-assignment-1/devsecops-demo
+  APP_DIR: 16_Complete_CICD_DevSecOps/app
+
+# Code -> Build -> Test -> SAST -> SCA -> Secret scan -> Docker build
+#      -> Image scan -> Security gate -> Push -> Deploy manifests
+jobs:
+
+  build-test:
+    name: 1. Build and unit test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 16_Complete_CICD_DevSecOps/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+
+  sast:
+    name: 2. SAST (Semgrep)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan source for insecure patterns
+        working-directory: 16_Complete_CICD_DevSecOps
+        # p/javascript and p/security-audit are curated community rulesets.
+        # --error makes a finding fail the job.
+        run: semgrep scan --config=p/javascript --config=p/security-audit --error --json-output=semgrep.json app/src
+      - name: Upload the SAST report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-semgrep-report
+          path: 16_Complete_CICD_DevSecOps/semgrep.json
+          retention-days: 7
+
+  sca:
+    name: 3. SCA (dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        working-directory: 16_Complete_CICD_DevSecOps/app
+        run: npm install
+
+      # Informational. continue-on-error so the report is always produced,
+      # the hard gate is the Trivy step below.
+      - name: npm audit
+        id: audit
+        continue-on-error: true
+        working-directory: 16_Complete_CICD_DevSecOps/app
+        run: npm audit --audit-level=high
+
+      # This is the hard gate for dependencies I actually chose.
+      # --ignore-unfixed drops CVEs with no patch available, so the build
+      # only fails on something that can genuinely be fixed today.
+      - name: Trivy dependency scan (blocking)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: 16_Complete_CICD_DevSecOps/app
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'
+
+      - name: Trivy dependency scan to a file
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: 16_Complete_CICD_DevSecOps/app
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: json
+          output: sca-trivy.json
+          exit-code: '0'
+
+      - name: Upload the SCA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-trivy-report
+          path: sca-trivy.json
+          retention-days: 7
+
+  secret-scan:
+    name: 4. Secret scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # gitleaks needs history to scan commits
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: 16_Complete_CICD_DevSecOps/security/.gitleaks.toml
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
+
+  image-scan:
+    name: 5. Build image and scan it
+    runs-on: ubuntu-latest
+    needs: [build-test]
+    outputs:
+      critical: ${{ steps.count.outputs.critical }}
+      high: ${{ steps.count.outputs.high }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image locally (not pushed yet)
+        run: docker build -t scan-target:${{ github.sha }} ${{ env.APP_DIR }}
+
+      - name: Scan the image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: scan-target:${{ github.sha }}
+          format: json
+          output: image-trivy.json
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Count the findings
+        id: count
+        run: |
+          CRIT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' image-trivy.json)
+          HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")]     | length' image-trivy.json)
+          echo "critical=$CRIT" >> "$GITHUB_OUTPUT"
+          echo "high=$HIGH"     >> "$GITHUB_OUTPUT"
+          echo "CRITICAL=$CRIT HIGH=$HIGH"
+
+      - name: Upload the image scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-trivy-report
+          path: image-trivy.json
+          retention-days: 7
+
+  security-gate:
+    name: 6. Security gate
+    runs-on: ubuntu-latest
+    needs: [sast, sca, secret-scan, image-scan]
+    # Runs even if an earlier scan failed, so the summary always explains why.
+    if: always()
+    steps:
+      - name: Decide whether to let this build through
+        run: |
+          echo "SAST:        ${{ needs.sast.result }}"
+          echo "SCA:         ${{ needs.sca.result }}"
+          echo "Secret scan: ${{ needs.secret-scan.result }}"
+          echo "Image scan:  ${{ needs.image-scan.result }}"
+          echo "Image CRITICAL: ${{ needs.image-scan.outputs.critical }}"
+          echo "Image HIGH:     ${{ needs.image-scan.outputs.high }}"
+
+          FAILED=0
+          # A failing SAST or secret scan blocks the build outright.
+          [ "${{ needs.sast.result }}"        != "success" ] && FAILED=1
+          [ "${{ needs.secret-scan.result }}" != "success" ] && FAILED=1
+          [ "${{ needs.image-scan.result }}"  != "success" ] && FAILED=1
+          # The SCA job is the blocking dependency check.
+          [ "${{ needs.sca.result }}"         != "success" ] && FAILED=1
+
+          {
+            echo "### Security gate"
+            echo ""
+            echo "| check | result |"
+            echo "|---|---|"
+            echo "| SAST (Semgrep) | ${{ needs.sast.result }} |"
+            echo "| SCA (Trivy, npm audit) | ${{ needs.sca.result }} |"
+            echo "| Secret scan (Gitleaks) | ${{ needs.secret-scan.result }} |"
+            echo "| Image scan (Trivy) | ${{ needs.image-scan.result }} |"
+            echo "| Image CRITICAL | ${{ needs.image-scan.outputs.critical }} |"
+            echo "| Image HIGH | ${{ needs.image-scan.outputs.high }} |"
+            echo ""
+            echo "Image findings above come mostly from the \`node:20-alpine\` base"
+            echo "image and its bundled npm. They are reported, not gated, because"
+            echo "fixing them needs a base image bump rather than a change to this"
+            echo "application. The blocking check is the SCA job."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$FAILED" = "1" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Gate **closed**. Image not published." >> "$GITHUB_STEP_SUMMARY"
+            echo "Security gate closed"
+            exit 1
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Gate **open**." >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: 7. Push image
+    runs-on: ubuntu-latest
+    needs: [security-gate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.APP_DIR }}
+          push: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }},${{ env.IMAGE }}:latest
+
+  deploy-manifests:
+    name: 8. Validate Kubernetes manifests
+    runs-on: ubuntu-latest
+    needs: [publish]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dry run the manifests against the API schema
+        run: |
+          curl -sLO "https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          # No cluster is reachable from a hosted runner, so this validates
+          # the manifests offline rather than pretending to deploy.
+          ./kubectl apply --dry-run=client -f 16_Complete_CICD_DevSecOps/k8s/deployment.yaml

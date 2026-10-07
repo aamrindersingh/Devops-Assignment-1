@@ -1,0 +1,16 @@
+{
+  "name": "devsecops-demo",
+  "version": "1.0.0",
+  "description": "App used to demonstrate a CI/CD pipeline with security gates",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js",
+    "lint": "node --check src/server.js && node --check src/users.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "lodash": "4.17.20"
+  },
+  "license": "MIT"
+}

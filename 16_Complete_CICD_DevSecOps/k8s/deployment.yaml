@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devsecops-demo
+  labels:
+    app: devsecops-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devsecops-demo
+  template:
+    metadata:
+      labels:
+        app: devsecops-demo
+    spec:
+      # Pod level hardening. These are the settings an image scanner and a
+      # cluster policy tool both look for.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: ghcr.io/aamrindersingh/devops-assignment-1/devsecops-demo:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet: { path: /ready, port: 3000 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: 3000 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 300m, memory: 192Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devsecops-demo
+spec:
+  selector:
+    app: devsecops-demo
+  ports:
+    - port: 80
+      targetPort: 3000
