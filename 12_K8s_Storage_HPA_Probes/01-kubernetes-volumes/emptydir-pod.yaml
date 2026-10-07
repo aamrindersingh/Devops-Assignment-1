@@ -1,0 +1,26 @@
+# emptyDir: a scratch directory that lives and dies with the Pod.
+# Both containers mount the same volume, so the writer's file shows up
+# for the reader - that is the point of emptyDir: sharing inside one Pod.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: emptydir-demo
+  labels:
+    demo: volumes
+spec:
+  containers:
+    - name: writer
+      image: busybox:1.36
+      command: ["sh", "-c", "echo 'written by the writer container' > /cache/note.txt; sleep 3600"]
+      volumeMounts:
+        - name: scratch
+          mountPath: /cache
+    - name: reader
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 3600"]
+      volumeMounts:
+        - name: scratch
+          mountPath: /cache
+  volumes:
+    - name: scratch
+      emptyDir: {}

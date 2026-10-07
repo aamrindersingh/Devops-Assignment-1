@@ -1,0 +1,17 @@
+# Deliberately broken liveness probe: it checks a path that nginx does not
+# serve, so every check 404s and kubelet restarts the container on a loop.
+# Used to show RESTARTS climbing and the Unhealthy events.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-liveness
+spec:
+  containers:
+    - name: web
+      image: nginx:1.25-alpine
+      livenessProbe:
+        httpGet:
+          path: /this-path-does-not-exist
+          port: 80
+        periodSeconds: 5
+        failureThreshold: 2

@@ -1,0 +1,40 @@
+# All three probe types on one container so the difference is visible.
+#
+#   startupProbe   - runs first. While it is failing, the other two are
+#                    paused. Gives a slow starter time without loosening
+#                    the liveness timings for the whole life of the pod.
+#   readinessProbe - decides whether the pod gets Service traffic. Failing
+#                    readiness removes the pod from Endpoints, it is NOT
+#                    restarted.
+#   livenessProbe  - decides whether the container is restarted.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: probes-demo
+  labels:
+    app: probes-demo
+spec:
+  containers:
+    - name: web
+      image: nginx:1.25-alpine
+      ports:
+        - containerPort: 80
+      startupProbe:
+        httpGet:
+          path: /
+          port: 80
+        # 30 x 2s = up to 60s to come up before liveness takes over
+        failureThreshold: 30
+        periodSeconds: 2
+      readinessProbe:
+        httpGet:
+          path: /
+          port: 80
+        periodSeconds: 5
+        failureThreshold: 2
+      livenessProbe:
+        httpGet:
+          path: /
+          port: 80
+        periodSeconds: 5
+        failureThreshold: 3

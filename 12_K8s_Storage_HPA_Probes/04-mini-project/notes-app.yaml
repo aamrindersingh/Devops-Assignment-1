@@ -1,0 +1,112 @@
+# Mini project: one small app that uses all three Session 13 topics at once.
+#
+#   storage - a PVC holds the note files so they survive a pod restart
+#   probes  - readiness gates traffic, liveness restarts a wedged container
+#   HPA     - CPU based autoscaling between 1 and 6 replicas
+#
+# ReadWriteOnce means all replicas must land on the same node to share the
+# volume. That is fine on a single worker kind cluster and is called out in
+# the README as the main thing that would change in a real cluster.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notes-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: standard
+  resources:
+    requests:
+      storage: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notes-app
+  labels:
+    app: notes-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notes-app
+  template:
+    metadata:
+      labels:
+        app: notes-app
+    spec:
+      # Seed the shared volume with an index page before nginx starts.
+      initContainers:
+        - name: seed
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /data/index.html ]; then
+                echo "<h1>Notes app</h1><p>Seeded on $(date)</p>" > /data/index.html
+              fi
+          volumeMounts:
+            - name: notes
+              mountPath: /data
+      containers:
+        - name: web
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: notes
+              mountPath: /usr/share/nginx/html
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+          startupProbe:
+            httpGet: { path: /, port: 80 }
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /, port: 80 }
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: notes
+          persistentVolumeClaim:
+            claimName: notes-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notes-app
+spec:
+  selector:
+    app: notes-app
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notes-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notes-app
+  minReplicas: 1
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
