@@ -83,7 +83,7 @@ jobs:
       # --ignore-unfixed drops CVEs with no patch available, so the build
       # only fails on something that can genuinely be fixed today.
       - name: Trivy dependency scan (blocking)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: 16_Complete_CICD_DevSecOps/app
@@ -94,7 +94,7 @@ jobs:
           exit-code: '1'
 
       - name: Trivy dependency scan to a file
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: 16_Complete_CICD_DevSecOps/app
@@ -140,7 +140,7 @@ jobs:
         run: docker build -t scan-target:${{ github.sha }} ${{ env.APP_DIR }}
 
       - name: Scan the image with Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: scan-target:${{ github.sha }}
           format: json

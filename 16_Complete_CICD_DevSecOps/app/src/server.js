@@ -21,11 +21,16 @@ app.get("/users/:id", (req, res) => {
   res.json(user);
 });
 
-// Escapes the input rather than echoing it straight back, so the SAST
-// scan has nothing to flag here.
+// Semgrep flagged the first version of this handler, which built an HTML
+// string out of req.query.name and passed it to res.send. I had written a
+// safeName() helper to strip dangerous characters, but a scanner cannot
+// tell that my helper is a real sanitizer, and more to the point it was
+// right that hand building HTML from user input is the risky pattern.
+// Returning JSON removes the HTML sink altogether, so there is nothing to
+// escape and nothing to get wrong later.
 app.get("/greet", (req, res) => {
   try {
-    res.send(`<p>Hello, ${safeName(String(req.query.name || "guest"))}</p>`);
+    res.json({ greeting: `Hello, ${safeName(String(req.query.name || "guest"))}` });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
